@@ -4,8 +4,6 @@
       #holder { border: 10px dashed #ccc; width: 300px; height: 300px; margin: 20px auto;}
       #holder.hover { border: 10px dashed #333; }
     </style>
-  <script src='togeojson.js'></script>
-  <title> GeoJSON generator </title>
   </head>
   <body>
     <div id="holder">
@@ -21,7 +19,7 @@
         state.className = 'fail';
       } else {
         state.className = 'success';
-        state.innerHTML = 'File API & FileReader available. Drop KML File above.';
+        state.innerHTML = 'File API & FileReader available';
       }
 
       holder.ondragover = function () { this.className = 'hover'; return false; };
@@ -34,10 +32,25 @@
         var file = e.dataTransfer.files[0],
         reader = new FileReader();
         reader.onload = function (event) {
-
-          var kml = event.target.result;
-          var dom = (new DOMParser()).parseFromString(kml, 'text/xml');
-          var geojson = toGeoJSON.kml(dom);
+          var data = JSON.parse(event.target.result);
+          var history = data.locations;
+          var lasttime;
+          geojson = {"type": "FeatureCollection", "features": [] };
+          for (var i = 0, len = history.length; i < len; i++) {
+            var h = history[i];
+            var coordinates;
+            if (lasttime - h.timestampMs > 300000) {
+              coordinates = [ h.longitudeE7/10000000 , h.latitudeE7/10000000 ]; 
+              geojson.features.push(
+               { 
+                 "type": "Feature", 
+                 "geometry": { "type":"Point", "coordinates": coordinates },
+                 "properties": { "date" : '"'+ new Date(Number(h.timestampMs)) + '"' }
+               }
+              );
+            }
+            lasttime = h.timestampMs;
+          }
           var bb = new Blob([JSON.stringify(geojson)], {type: 'application/json'});
           var a = document.querySelector('#downloadlink');
           a.href = window.URL.createObjectURL(bb);
